@@ -446,7 +446,13 @@ pub async fn mint_collection(
     worker: bool,
     for_artist: &str
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
-    match get_drop_details(remix_collection_id, description, agent.id, image, &model).await {
+    let model_override = if model.contains("dolphin") {
+        println!("DEBUG: Overriding deprecated model {} with llama-3.3-70b", model);
+        "llama-3.3-70b"
+    } else {
+        model
+    };
+    match get_drop_details(remix_collection_id, description, agent.id, image, model_override).await {
         Ok((drop_metadata, drop_id)) => {
             if drop_metadata.trim() == "" || !drop_metadata.contains("ipfs://") {
                 eprintln!("Error with drop metadata: {}", drop_metadata);

@@ -169,21 +169,11 @@ pub async fn mint(
         let bytes = image_response.bytes().await?;
 
         let payload_inicial = serde_json::json!({
-            "model": "flux-dev-uncensored",
+            "model": "lustify-sdxl",
             "prompt": prompt,
             "width": 768,
             "height": 768,
-            "steps": 25,
-            "hide_watermark": true,
-            "return_binary": false,
-            "cfg_scale": 3.5,
-            "style_preset": preset,
             "negative_prompt": NEGATIVE_PROMPT_IMAGE,
-            "safe_mode": false,
-            // "inpaint": {
-            //     "strength": 85,
-            //     "source_image_base64": STANDARD.encode(&bytes)
-            // }
         });
 
         let response = client
@@ -221,7 +211,7 @@ pub async fn mint(
                                 U256::from(0),
                                 &agent.model,
                                 &prompt,
-                                "flux-dev-uncensored",
+                                "lustify-sdxl",
                                 1u8,
                                 Some(format.to_string()),
                                 false,

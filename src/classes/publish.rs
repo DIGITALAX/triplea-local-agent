@@ -16,12 +16,18 @@ pub async fn publish(
     collection: &Collection,
     collection_instructions: &str,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
+    let model = if agent.model.contains("dolphin") {
+        println!("DEBUG: Overriding deprecated model {} with llama-3.3-70b", agent.model);
+        "llama-3.3-70b"
+    } else {
+        &agent.model
+    };
     match call_chat_completion(
         collection,
         &format_instructions(&agent),
         collection_instructions,
         &agent.id,
-        &agent.model,
+        model,
     )
     .await
     {

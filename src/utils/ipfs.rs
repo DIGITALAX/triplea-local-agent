@@ -14,7 +14,7 @@ use std::{
     sync::{Arc, Once},
 };
 use tokio::{
-    fs::{remove_file, File, OpenOptions},
+    fs::{create_dir_all, remove_file, File, OpenOptions},
     io::{AsyncReadExt, AsyncWriteExt},
 };
 use uuid::Uuid;
@@ -47,8 +47,10 @@ pub async fn upload_image_to_ipfs(
 ) -> Result<IPFSResponse, Box<dyn Error + Send + Sync>> {
     let base64_data = base64_str.split(',').last().unwrap_or(base64_str);
     let image_bytes = general_purpose::STANDARD.decode(base64_data)?;
-    let path = format!("/var/data/{}.png", Uuid::new_v4());
-    // let path = format!("var/data/{}.png", Uuid::new_v4());
+
+    let temp_dir = std::env::temp_dir();
+    let path = temp_dir.join(format!("{}.png", Uuid::new_v4()));
+
     let file_result = OpenOptions::new()
         .write(true)
         .create(true)

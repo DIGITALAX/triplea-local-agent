@@ -16,7 +16,13 @@ pub async fn lead_generation(
     tokens: Option<SavedTokens>,
     collection_instructions: &str,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
-    match receive_query(&collection.description, &collection.title, &agent.model).await {
+    let model = if agent.model.contains("dolphin") {
+        println!("DEBUG: Overriding deprecated model {} with llama-3.3-70b", agent.model);
+        "llama-3.3-70b"
+    } else {
+        &agent.model
+    };
+    match receive_query(&collection.description, &collection.title, model).await {
         Ok(query) => match search_posts(&agent.wallet, &query).await {
             Ok((posts, profiles)) => {
                 let _ = follow_profiles(

@@ -34,8 +34,19 @@ pub async fn remix(
         >,
     >,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
-    match call_prompt(&collection.description, &agent.model).await {
-        Ok((prompt, model)) => {
+    let model = if agent.model.contains("dolphin") {
+        println!("DEBUG: Overriding deprecated model {} with llama-3.3-70b", agent.model);
+        "llama-3.3-70b"
+    } else {
+        &agent.model
+    };
+
+    match call_prompt(&collection.description, model).await {
+        Ok((prompt, mut image_model)) => {
+            if image_model == "flux-dev-uncensored" {
+                println!("DEBUG: Overriding deprecated image model {} with lustify-sdxl", image_model);
+                image_model = "lustify-sdxl".to_string();
+            }
             let client = Client::new();
 
             let image_response = client
@@ -53,21 +64,11 @@ pub async fn remix(
                 let venice_key =
                     env::var("VENICE_KEY").expect("VENICE_KEY no está configurada en .env");
                 let payload_inicial = serde_json::json!({
-                    "model": model,
+                    "model": image_model,
                     "prompt": prompt,
                     "width": 768,
                     "height": 768,
-                    "steps": 25,
-                    "hide_watermark": true,
-                    "return_binary": false,
-                    "cfg_scale": 3.5,
-                    "style_preset": STYLE_PRESETS[thread_rng().gen_range(0..3)],
                     "negative_prompt": NEGATIVE_PROMPT,
-                    "safe_mode": false,
-                    // "inpaint": {
-                    //     "strength": 90,
-                    //     "source_image_base64": STANDARD.encode(&bytes)
-                    // }
                 });
 
                 let response = client
@@ -105,7 +106,7 @@ pub async fn remix(
                                         collection.collection_id,
                                         &agent.model,
                                         &prompt,
-                                        &model,
+                                        &image_model,
                                         0u8,
                                         None,
                                         true,

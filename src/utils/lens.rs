@@ -423,66 +423,86 @@ pub async fn make_publication(
 
 async fn poll(hash: &str, auth_tokens: &str) -> Result<String, Box<dyn Error + Send + Sync>> {
     let client = initialize_api();
-    let query = json!({
-        "query": r#"
-            query TransactionStatus($request: TransactionStatusRequest!) {
-                transactionStatus(request: $request) {
-                    ... on NotIndexedYetStatus {
-                        reason
-                        txHasMined
-                    }
-                    ... on PendingTransactionStatus {
-                        blockTimestamp
-                    }
-                    ... on FinishedTransactionStatus {
-                        blockTimestamp
-                    }
-                    ... on FailedTransactionStatus {
-                        reason
-                        blockTimestamp
-                    }
-                }
-            }
-        "#,
-        "variables": {
-            "request": {
-                "txHash": hash
-            }
-        }
-    });
-
     from_filename(".env").ok();
     let server_key: String = var("SERVER_KEY").expect("SERVER_KEY not configured in .env");
 
-    let response = client
-        .post(LENS_API)
-        .header("Authorization", format!("Bearer {}", auth_tokens))
-        .header("x-api-key", server_key)
-        .header("Content-Type", "application/json")
-        .header("Origin", "https://triplea-66ij.onrender.com")
-        // .header("Origin", "http://localhost:3000")
-        .json(&query)
-        .send()
-        .await?;
+    for attempt in 1..=10 {
+        println!("Poll attempt {}/10 for hash: {}", attempt, hash);
 
-    if response.status().is_success() {
-        let json: Value = response.json().await?;
-        if let Some(status) = json["data"]["transactionStatus"].as_object() {
-            if let Some(reason) = status.get("reason").and_then(|v| v.as_str()) {
-                return Ok(format!("Transaction failed: {}", reason));
-            } else if let Some(timestamp) = status.get("blockTimestamp").and_then(|v| v.as_str()) {
-                return Ok(format!("Transaction finished at: {}", timestamp));
-            } else if let Some(tx_mined) = status.get("txHasMined").and_then(|v| v.as_bool()) {
-                return Ok(format!(
-                    "Transaction not indexed yet. Has mined: {}",
-                    tx_mined
-                ));
+        let query = json!({
+            "query": r#"
+                query TransactionStatus($request: TransactionStatusRequest!) {
+                    transactionStatus(request: $request) {
+                        ... on NotIndexedYetStatus {
+                            reason
+                            txHasMined
+                        }
+                        ... on PendingTransactionStatus {
+                            blockTimestamp
+                        }
+                        ... on FinishedTransactionStatus {
+                            blockTimestamp
+                        }
+                        ... on FailedTransactionStatus {
+                            reason
+                            blockTimestamp
+                        }
+                    }
+                }
+            "#,
+            "variables": {
+                "request": {
+                    "txHash": hash
+                }
             }
+        });
+
+        let response = client
+            .post(LENS_API)
+            .header("Authorization", format!("Bearer {}", auth_tokens))
+            .header("x-api-key", &server_key)
+            .header("Content-Type", "application/json")
+            .header("Origin", "https://triplea-66ij.onrender.com")
+            .json(&query)
+            .send()
+            .await?;
+
+        if response.status().is_success() {
+            let json: Value = response.json().await?;
+            println!("📡 Full API response: {:?}", json);
+
+            if let Some(status) = json["data"]["transactionStatus"].as_object() {
+                println!("📊 Transaction status object: {:?}", status);
+
+                if let Some(timestamp) = status.get("blockTimestamp").and_then(|v| v.as_str()) {
+                    println!("✅ Transaction indexed successfully at: {}", timestamp);
+                    return Ok(format!("Transaction finished at: {}", timestamp));
+                }
+
+                if let Some(reason) = status.get("reason").and_then(|v| v.as_str()) {
+                    if reason.contains("not indexed yet") || reason.contains("keep trying") {
+                        println!("⏳ Transaction not indexed yet, retrying in 3 seconds...");
+                        tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+                        continue;
+                    } else {
+                        println!("❌ Transaction failed with reason: {}", reason);
+                        return Err(format!("Transaction failed: {}", reason).into());
+                    }
+                }
+            } else {
+                println!("⚠️ No transactionStatus in response");
+            }
+        } else {
+            let status = response.status();
+            let error_body = response.text().await.unwrap_or_else(|_| "Unable to read error body".to_string());
+            println!("❌ Poll request failed - Status: {}, Body: {}", status, error_body);
         }
-        Err("Unknown transaction status".into())
-    } else {
-        Err(format!("Error: {}", response.status()).into())
+
+        tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
     }
+
+    println!("⚠️ Transaction polling timed out after 10 attempts");
+    Ok("Transaction submitted but indexing timed out".to_string())
 }
 
 pub async fn handle_lens_account(wallet: &str, username: bool) -> Result<String, Box<dyn Error>> {
