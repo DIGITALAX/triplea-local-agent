@@ -169,7 +169,7 @@ pub async fn mint(
         let bytes = image_response.bytes().await?;
 
         let payload_inicial = serde_json::json!({
-            "model": "lustify-sdxl",
+            "model": "qwen-image",
             "prompt": prompt,
             "width": 768,
             "height": 768,
@@ -211,7 +211,7 @@ pub async fn mint(
                                 U256::from(0),
                                 &agent.model,
                                 &prompt,
-                                "lustify-sdxl",
+                                "qwen-image",
                                 1u8,
                                 Some(format.to_string()),
                                 false,

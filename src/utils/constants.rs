@@ -11,7 +11,7 @@ pub static BONSAI: &'static str = "0xB0588f9A9cADe7CD5f194a5fe77AcD6A58250f82";
 pub static MONA: &'static str = "0x28547B5b6B405A1444A17694AC84aa2d6A03b3Bd";
 pub static MODELS: &[&str] = &[
     "flux-dev-uncensored",
-    "lustify-sdxl",
+    "qwen-image",
     "fluently-xl",
     "pony-realism",
 ];

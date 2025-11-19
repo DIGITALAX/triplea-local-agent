@@ -44,8 +44,8 @@ pub async fn remix(
     match call_prompt(&collection.description, model).await {
         Ok((prompt, mut image_model)) => {
             if image_model == "flux-dev-uncensored" {
-                println!("DEBUG: Overriding deprecated image model {} with lustify-sdxl", image_model);
-                image_model = "lustify-sdxl".to_string();
+                println!("DEBUG: Overriding deprecated image model {} with qwen-image", image_model);
+                image_model = "qwen-image".to_string();
             }
             let client = Client::new();
 
